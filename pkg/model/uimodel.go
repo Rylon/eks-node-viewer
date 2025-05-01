@@ -87,7 +87,7 @@ func (u *UIModel) View() string {
 		return u.nodeSorter(stats.Nodes[a], stats.Nodes[b])
 	})
 
-	ctw := text.NewColorTabWriter(&b, 0, 8, 1)
+	ctw := text.NewColorTabWriter(&b, 0, 8, 2)
 	u.writeClusterSummary(u.cluster.resources, stats, ctw)
 	ctw.Flush()
 	u.progress.ShowPercentage = true
