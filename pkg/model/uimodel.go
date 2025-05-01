@@ -116,7 +116,7 @@ func (u *UIModel) View() string {
 	if start >= 0 && end >= start {
 		// Adds a header row to the table, outside of the paginator.
 		fmt.Fprintf(ctw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
-			"Node name", "", "Resource allocation", "Pods", "Instance Type", "Compute Type", "Status", "Readiness")
+			"Node name", "", "Resource allocation", "Pods", "Age", "Instance Type", "Compute Type", "Status")
 
 		// Add a column for each of the "extra labels" passed in by the user.
 		for _, label := range u.extraLabels {
@@ -154,11 +154,18 @@ func (u *UIModel) writeNodeInfo(n *Node, w io.Writer, resources []v1.ResourceNam
 		}
 
 		if firstLine {
+
+			age := duration.HumanDuration(time.Since(n.Created()))
+
 			priceLabel := fmt.Sprintf("/$%0.4f", n.Price)
 			if !n.HasPrice() || u.DisablePricing {
 				priceLabel = ""
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t(%d pods)\t%s%s", n.Name(), res, u.progress.ViewAs(pct), n.NumPods(), n.InstanceType(), priceLabel)
+
+			maximum_pods := allocatable["pods"]
+			pods_text := fmt.Sprintf("%d/%s", n.NumPods(), maximum_pods.String())
+
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s%s", n.Name(), res, u.progress.ViewAs(pct), pods_text, age, n.InstanceType(), priceLabel)
 
 			// node compute type
 			if n.IsOnDemand() {
@@ -175,23 +182,38 @@ func (u *UIModel) writeNodeInfo(n *Node, w io.Writer, resources []v1.ResourceNam
 				fmt.Fprintf(w, "/Auto")
 			}
 
-			// node status
-			if n.Cordoned() && n.Deleting() {
-				fmt.Fprintf(w, "\tCordoned/Deleting")
-			} else if n.Deleting() {
-				fmt.Fprintf(w, "\tDeleting")
-			} else if n.Cordoned() {
-				fmt.Fprintf(w, "\tCordoned")
-			} else {
-				fmt.Fprintf(w, "\t-")
-			}
+			readiness, node_status := "", ""
 
 			// node readiness or time we've been waiting for it to be ready
 			if n.Ready() {
-				fmt.Fprintf(w, "\tReady")
+				// fmt.Fprintf(w, "\tReady")
+				readiness = "Ready"
 			} else {
-				fmt.Fprintf(w, "\tNotReady/%s", duration.HumanDuration(time.Since(n.NotReadyTime())))
+				// fmt.Fprintf(w, "\tNotReady/%s", duration.HumanDuration(time.Since(n.NotReadyTime())))
+				readiness = fmt.Sprintf("\tNotReady/%s", duration.HumanDuration(time.Since(n.NotReadyTime())))
 			}
+
+			// node status
+			if n.Cordoned() && n.Deleting() {
+				// fmt.Fprintf(w, "\tCordoned/Deleting")
+				node_status = "Cordoned/Deleting"
+			} else if n.Deleting() {
+				// fmt.Fprintf(w, "\tDeleting")
+				node_status = "Deleting"
+			} else if n.Cordoned() {
+				// fmt.Fprintf(w, "\tCordoned")
+				node_status = "Cordoned"
+			} //else {
+			// fmt.Fprintf(w, "\t-")
+			// }
+
+			if node_status != "" {
+				node_status = fmt.Sprintf("(%s)", node_status)
+			}
+
+			// Combine node status and readiness into a single column
+			// fmt.Fprintf(w, "\t%s/%s", n.Status(), n.Ready())
+			fmt.Fprintf(w, "\t%s%s", readiness, node_status)
 
 			for _, label := range u.extraLabels {
 				labelValue, ok := n.node.Labels[label]
@@ -203,7 +225,7 @@ func (u *UIModel) writeNodeInfo(n *Node, w io.Writer, resources []v1.ResourceNam
 			}
 
 		} else {
-			fmt.Fprintf(w, " \t%s\t%s\t\t\t\t\t", res, u.progress.ViewAs(pct))
+			fmt.Fprintf(w, " \t%s\t%s\t\t\t\t\t\t", res, u.progress.ViewAs(pct))
 			for range u.extraLabels {
 				fmt.Fprintf(w, "\t")
 			}
