@@ -114,6 +114,16 @@ func (u *UIModel) View() string {
 	}
 	start, end := u.paginator.GetSliceBounds(stats.NumNodes)
 	if start >= 0 && end >= start {
+		// Adds a header row to the table, outside of the paginator.
+		fmt.Fprintf(ctw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
+			"Node name", "", "Resource allocation", "Pods", "Instance Type", "Compute Type", "Status", "Readiness")
+
+		// Add a column for each of the "extra labels" passed in by the user.
+		for _, label := range u.extraLabels {
+			fmt.Fprintf(ctw, "\t%s", label)
+		}
+		fmt.Fprintln(ctw)
+
 		for _, n := range stats.Nodes[start:end] {
 			u.writeNodeInfo(n, ctw, u.cluster.resources)
 		}
