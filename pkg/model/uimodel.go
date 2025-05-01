@@ -241,6 +241,29 @@ func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, 
 	for _, res := range resources {
 		allocatable := stats.AllocatableResources[res]
 		used := stats.UsedResources[res]
+
+		usedStr := used.String()
+		allocatableStr := allocatable.String()
+
+		// message printer formats numbers nicely with commas
+		enPrinter := message.NewPrinter(language.English)
+
+		// Normalise memory to Mi for consistent display
+		if res == v1.ResourceMemory {
+			var usedMi, allocatableMi float64
+
+			if used.Value() != 0 {
+				usedMi = float64(used.Value()) / (1024 * 1024) // Convert to Mi
+			}
+
+			if allocatable.Value() != 0 {
+				allocatableMi = float64(allocatable.Value()) / (1024 * 1024) // Convert to Mi
+			}
+
+			usedStr = enPrinter.Sprint(int64(usedMi)) + "Mi"
+			allocatableStr = enPrinter.Sprint(int64(allocatableMi)) + "Mi"
+		}
+
 		pctUsed := 0.0
 		if allocatable.AsApproximateFloat64() != 0 {
 			pctUsed = 100 * (used.AsApproximateFloat64() / allocatable.AsApproximateFloat64())
@@ -256,18 +279,17 @@ func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, 
 
 		u.progress.ShowPercentage = false
 		monthlyPrice := stats.TotalPrice * (365 * 24) / 12 // average hours per month
-		// message printer formats numbers nicely with commas
-		enPrinter := message.NewPrinter(language.English)
+
 		clusterPrice := enPrinter.Sprintf("$%0.3f/hour | $%0.3f/month", stats.TotalPrice, monthlyPrice)
 		if u.DisablePricing {
 			clusterPrice = ""
 		}
 		if firstLine {
 			enPrinter.Fprintf(w, "%d nodes\t(%10s/%s)\t%s\t%s\t%s\t%s\n",
-				stats.NumNodes, used.String(), allocatable.String(), pctUsedStr, res, u.progress.ViewAs(pctUsed/100.0), clusterPrice)
+				stats.NumNodes, usedStr, allocatableStr, pctUsedStr, res, u.progress.ViewAs(pctUsed/100.0), clusterPrice)
 		} else {
 			enPrinter.Fprintf(w, " \t%s/%s\t%s\t%s\t%s\t\n",
-				used.String(), allocatable.String(), pctUsedStr, res, u.progress.ViewAs(pctUsed/100.0))
+				usedStr, allocatableStr, pctUsedStr, res, u.progress.ViewAs(pctUsed/100.0))
 		}
 		firstLine = false
 	}
