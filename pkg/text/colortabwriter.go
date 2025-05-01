@@ -80,6 +80,12 @@ func (c *ColorTabWriter) Flush() {
 		}
 	}
 
+	// Special handling: limit width of the resource bar charts to prevent overflow
+	// breaking columns that follow.
+	if len(c.cellWidths) > 2 && c.cellWidths[2] > 40 {
+		c.cellWidths[2] = 40
+	}
+
 	for _, line := range c.contents {
 		if len(line) == 0 {
 			continue
@@ -91,6 +97,11 @@ func (c *ColorTabWriter) Flush() {
 			}
 			cellStrLen := strlen(cell)
 			cellPadding := c.cellWidths[i] + c.padding - cellStrLen
+
+			// Prevent negative padding causing a negative slice length by forcing the minimum padding.
+			if cellPadding <= 0 {
+				cellPadding = c.padding
+			}
 
 			if debug {
 				c.output.Write([]byte("|"))
