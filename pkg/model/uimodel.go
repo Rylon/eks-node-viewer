@@ -190,7 +190,7 @@ func (u *UIModel) writeNodeInfo(n *Node, w io.Writer, resources []v1.ResourceNam
 				readiness = "Ready"
 			} else {
 				// fmt.Fprintf(w, "\tNotReady/%s", duration.HumanDuration(time.Since(n.NotReadyTime())))
-				readiness = fmt.Sprintf("\tNotReady/%s", duration.HumanDuration(time.Since(n.NotReadyTime())))
+				readiness = fmt.Sprintf("NotReady/%s", duration.HumanDuration(time.Since(n.NotReadyTime())))
 			}
 
 			// node status
