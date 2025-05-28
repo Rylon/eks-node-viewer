@@ -120,6 +120,10 @@ func (u *UIModel) View() string {
 
 		// Add a column for each of the "extra labels" passed in by the user.
 		for _, label := range u.extraLabels {
+			// split the label by / and use the last part, to keep column names short
+			labelParts := strings.Split(label, "/")
+			label = labelParts[len(labelParts)-1]
+			label = strings.ToUpper(label[:1]) + label[1:]
 			fmt.Fprintf(ctw, "\t%s", label)
 		}
 		fmt.Fprintln(ctw)
