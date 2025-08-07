@@ -18,13 +18,14 @@ import (
 	"io"
 )
 
-const debug = false
+// const debug = false
 
 type ColorTabWriter struct {
 	output   io.Writer
 	padding  int
 	minWidth int
 	tabWidth int
+	debug    bool
 
 	contents   [][][]byte
 	cellWidths []int
@@ -37,6 +38,10 @@ func NewColorTabWriter(output io.Writer, minWidth, tabWidth, padding int) *Color
 		tabWidth: tabWidth,
 		padding:  padding,
 	}
+}
+
+func (c *ColorTabWriter) SetDebug(debug bool) {
+	c.debug = debug
 }
 
 func (c *ColorTabWriter) Write(buf []byte) (n int, err error) {
@@ -73,7 +78,7 @@ func (c *ColorTabWriter) Flush() {
 
 	padding := make([]byte, maxWidth+2)
 	for i := range padding {
-		if debug {
+		if c.debug {
 			padding[i] = '.'
 		} else {
 			padding[i] = ' '
@@ -103,7 +108,7 @@ func (c *ColorTabWriter) Flush() {
 				cellPadding = c.padding
 			}
 
-			if debug {
+			if c.debug {
 				c.output.Write([]byte("|"))
 			}
 			c.output.Write(cell)

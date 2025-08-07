@@ -52,6 +52,7 @@ type UIModel struct {
 	nodeSorter     func(lhs, rhs *Node) bool
 	style          *Style
 	DisablePricing bool
+	DebugTable     bool
 }
 
 func NewUIModel(extraLabels []string, nodeSort string, style *Style) *UIModel {
@@ -67,6 +68,7 @@ func NewUIModel(extraLabels []string, nodeSort string, style *Style) *UIModel {
 		paginator:   pager,
 		nodeSorter:  makeNodeSorter(nodeSort),
 		style:       style,
+		DebugTable:  false,
 	}
 }
 
@@ -88,6 +90,7 @@ func (u *UIModel) View() string {
 	})
 
 	ctw := text.NewColorTabWriter(&b, 0, 8, 2)
+	ctw.SetDebug(u.DebugTable)
 	u.writeClusterSummary(u.cluster.resources, stats, ctw)
 	ctw.Flush()
 	u.progress.ShowPercentage = true
