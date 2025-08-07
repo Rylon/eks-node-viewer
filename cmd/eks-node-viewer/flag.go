@@ -49,6 +49,7 @@ type Flags struct {
 	Kubeconfig      string
 	Resources       string
 	DisablePricing  bool
+	DebugTable      bool
 	ShowAttribution bool
 	Version         bool
 }
@@ -79,6 +80,9 @@ func ParseFlags() (Flags, error) {
 
 	style := cfg.getValue("style", "#04B575,#FFFF00,#FF0000")
 	flagSet.StringVar(&flags.Style, "style", style, "Three color to use for styling 'good','ok' and 'bad' values. These are also used in the gradients displayed from bad -> good.")
+
+	debug := cfg.getBoolValue("debug", false)
+	flagSet.BoolVar(&flags.DebugTable, "debug", debug, "Enable debug table output")
 
 	// flag overrides env. var. and env. var. overrides config file
 	kubeconfigDefault := getStringEnv("KUBECONFIG", cfg.getValue("kubeconfig", filepath.Join(homeDir, ".kube", "config")))
