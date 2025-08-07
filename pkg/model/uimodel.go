@@ -272,8 +272,8 @@ func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, 
 		}
 
 		pctUsed := 0.0
-		if allocatable.AsApproximateFloat64() != 0 {
-			pctUsed = 100 * (used.AsApproximateFloat64() / allocatable.AsApproximateFloat64())
+		if allocatable.Value() != 0 {
+			pctUsed = 100 * (float64(used.Value()) / float64(allocatable.Value()))
 		}
 		pctUsedStr := fmt.Sprintf("%0.1f%%", pctUsed)
 		if pctUsed > 90 {
@@ -285,18 +285,44 @@ func (u *UIModel) writeClusterSummary(resources []v1.ResourceName, stats Stats, 
 		}
 
 		u.progress.ShowPercentage = false
-		monthlyPrice := stats.TotalPrice * (365 * 24) / 12 // average hours per month
 
-		clusterPrice := enPrinter.Sprintf("$%0.3f/hour | $%0.3f/month", stats.TotalPrice, monthlyPrice)
+		// Group pricing by nodepool
+		nodepoolPricing := u.calculateNodepoolPricing(stats.Nodes)
+
+		var clusterPrice string
 		if u.DisablePricing {
 			clusterPrice = ""
+		} else {
+			clusterPrice = u.formatNodepoolPricing(nodepoolPricing, enPrinter)
 		}
 		if firstLine {
 			enPrinter.Fprintf(w, "%d nodes\t(%10s/%s)\t%s\t%s\t%s\t%s\n",
 				stats.NumNodes, usedStr, allocatableStr, pctUsedStr, res, u.progress.ViewAs(pctUsed/100.0), clusterPrice)
 		} else {
-			enPrinter.Fprintf(w, " \t%s/%s\t%s\t%s\t%s\t\n",
-				usedStr, allocatableStr, pctUsedStr, res, u.progress.ViewAs(pctUsed/100.0))
+			// Show nodepool breakdown on the second line (memory row)
+			var secondLinePrice string
+			if !u.DisablePricing && res == v1.ResourceMemory {
+				nodepoolPricing := u.calculateNodepoolPricing(stats.Nodes)
+				if len(nodepoolPricing) > 1 {
+					var pricingParts []string
+
+					// Sort nodepools alphabetically for consistent display
+					var nodepools []string
+					for nodepool := range nodepoolPricing {
+						nodepools = append(nodepools, nodepool)
+					}
+					sort.Strings(nodepools)
+
+					for _, nodepool := range nodepools {
+						price := nodepoolPricing[nodepool]
+						monthlyPrice := price * (365 * 24) / 12
+						pricingParts = append(pricingParts, fmt.Sprintf("%s: $%0.3f/mo", nodepool, monthlyPrice))
+					}
+					secondLinePrice = fmt.Sprintf("(%s)", strings.Join(pricingParts, ", "))
+				}
+			}
+			enPrinter.Fprintf(w, " \t%s/%s\t%s\t%s\t%s\t%s\n",
+				usedStr, allocatableStr, pctUsedStr, res, u.progress.ViewAs(pctUsed/100.0), secondLinePrice)
 		}
 		firstLine = false
 	}
@@ -380,5 +406,55 @@ func makeNodeSorter(nodeSort string) func(lhs *Node, rhs *Node) bool {
 			return sortOrder(natsort.Compare(lhs.InstanceID(), rhs.InstanceID()))
 		}
 		return sortOrder(natsort.Compare(lhsLabel, rhsLabel))
+	}
+}
+
+// calculateNodepoolPricing groups nodes by nodepool and calculates pricing per group
+func (u *UIModel) calculateNodepoolPricing(nodes []*Node) map[string]float64 {
+	nodepoolPricing := make(map[string]float64)
+
+	for _, node := range nodes {
+		nodepool := "default" // default nodepool name
+		if label, ok := node.node.Labels["karpenter.sh/nodepool"]; ok {
+			nodepool = label
+		} else if label, ok := node.node.Labels["eks.amazonaws.com/nodegroup"]; ok {
+			nodepool = label
+		}
+
+		nodepoolPricing[nodepool] += node.Price
+	}
+
+	return nodepoolPricing
+}
+
+// formatNodepoolPricing formats the nodepool pricing for display
+func (u *UIModel) formatNodepoolPricing(nodepoolPricing map[string]float64, enPrinter *message.Printer) string {
+	if len(nodepoolPricing) == 0 {
+		return ""
+	}
+
+	var pricingParts []string
+	totalPrice := 0.0
+
+	// Sort nodepools alphabetically for consistent display
+	var nodepools []string
+	for nodepool := range nodepoolPricing {
+		nodepools = append(nodepools, nodepool)
+	}
+	sort.Strings(nodepools)
+
+	for _, nodepool := range nodepools {
+		price := nodepoolPricing[nodepool]
+		totalPrice += price
+		pricingParts = append(pricingParts, fmt.Sprintf("%s: $%0.3f/hr", nodepool, price))
+	}
+
+	totalMonthlyPrice := totalPrice * (365 * 24) / 12
+
+	if len(pricingParts) > 1 {
+		return fmt.Sprintf("Total: $%0.3f/hr | $%0.3f/mo",
+			totalPrice, totalMonthlyPrice)
+	} else {
+		return fmt.Sprintf("$%0.3f/hr | $%0.3f/mo", totalPrice, totalMonthlyPrice)
 	}
 }
