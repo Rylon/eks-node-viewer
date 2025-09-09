@@ -75,7 +75,7 @@ func ParseFlags() (Flags, error) {
 	extraLabelsDefault := cfg.getValue("extra-labels", "")
 	flagSet.StringVar(&flags.ExtraLabels, "extra-labels", extraLabelsDefault, "A comma separated set of extra node labels to display")
 
-	nodeSort := cfg.getValue("node-sort", "creation=dsc")
+	nodeSort := cfg.getValue("node-sort", "creation=asc")
 	flagSet.StringVar(&flags.NodeSort, "node-sort", nodeSort, "Sort order for the nodes, either 'creation' or a label name. The sort order defaults to ascending and can be controlled by appending =asc or =dsc to the value.")
 
 	style := cfg.getValue("style", "#FF0000,#FFFF00,#04B575")
