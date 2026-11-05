@@ -73,7 +73,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("creating style, %s", err)
 	}
-	m := model.NewUIModel(strings.Split(flags.ExtraLabels, ","), flags.NodeSort, style)
+	m := model.NewUIModel(strings.FieldsFunc(flags.ExtraLabels, func(r rune) bool { return r == ',' }), flags.NodeSort, style)
 	m.DisablePricing = flags.DisablePricing
 	m.DebugTable = flags.DebugTable
 	m.SetResources(strings.FieldsFunc(flags.Resources, func(r rune) bool { return r == ',' }))
